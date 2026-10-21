@@ -4,4 +4,7 @@ __pycache__/
 .env
 data/raw/
 data/synthetic/
-*.log
+*.logdata/processed/
+
+# Generated Spark processing outputs
+/data/processed/
