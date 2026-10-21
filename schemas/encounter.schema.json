@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://episcope.local/schemas/encounter.schema.json",
+  "title": "EpiScope Encounter Record",
+  "description": "Contract for one encounter/report record entering EpiScope Bronze.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "encounter_id",
+    "facility_id",
+    "district_code",
+    "disease",
+    "encounter_date",
+    "report_date",
+    "age_years",
+    "sex",
+    "case_classification",
+    "source_system",
+    "ingestion_timestamp"
+  ],
+  "properties": {
+    "encounter_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "patient_id_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "facility_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "district_code": {
+      "type": "string",
+      "minLength": 1
+    },
+    "disease": {
+      "type": "string",
+      "minLength": 1
+    },
+    "encounter_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "symptom_onset_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "report_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "age_years": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 120
+    },
+    "sex": {
+      "type": "string",
+      "enum": [
+        "female",
+        "male",
+        "other",
+        "unknown",
+        "not_recorded"
+      ]
+    },
+    "case_classification": {
+      "type": "string",
+      "enum": [
+        "suspected",
+        "probable",
+        "confirmed",
+        "unknown"
+      ]
+    },
+    "source_system": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_record_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "ingestion_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
