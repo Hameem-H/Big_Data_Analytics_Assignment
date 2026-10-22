@@ -406,6 +406,7 @@ def main() -> None:
     spark = (
         SparkSession.builder
         .appName("EpiScope-Silver-Validation")
+        .config("spark.sql.adaptive.enabled", "true")
         .getOrCreate()
     )
 
