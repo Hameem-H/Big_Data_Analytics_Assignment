@@ -41,7 +41,10 @@ One record represents one reported encounter or case record from a source system
 5. If present, `symptom_onset_date` should not be later than `encounter_date` unless an exception is documented.
 6. Suppress public-facing aggregate counts of 1–4 and apply complementary suppression where necessary to prevent reconstruction.
 7. Deduplication should account for `source_system`; encounter IDs are not assumed to be globally unique across all sources.
-
+8. Late-arriving reports are accepted when `report_date` is later than
+   `encounter_date`. To refresh aggregates after source data changes, rerun
+   the affected batch with `--reprocess`; separate batch outputs are not
+   automatically merged into existing aggregates.
 ## Layer responsibilities
 
 - **Bronze:** retain source records and ingestion metadata under restricted access.
