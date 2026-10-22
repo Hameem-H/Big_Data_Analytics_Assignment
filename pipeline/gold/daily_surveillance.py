@@ -5,8 +5,7 @@ import json
 import re
 from pathlib import Path
 
-from pyspark.sql import DataFrame, SparkSession, functions as F
-
+from pyspark.sql import DataFrame, SparkSession, Window, functions as F
 
 DIMENSIONS = [
     "encounter_date",
@@ -20,11 +19,7 @@ def aggregate_daily_surveillance(
     silver: DataFrame,
     min_public_count: int = 5,
 ) -> DataFrame:
-    """Aggregate Silver records and suppress public counts below threshold.
-
-    The output contains no patient identifiers or encounter-level records.
-    Counts from 1 to min_public_count - 1 are replaced with null.
-    """
+    """Aggregate daily surveillance with primary and complementary suppression."""
 
     if min_public_count < 2:
         raise ValueError("min_public_count must be at least 2")
@@ -36,35 +31,67 @@ def aggregate_daily_surveillance(
             f"Silver data is missing required columns: {sorted(missing)}"
         )
 
-    # Aggregate at the district, disease, date, and classification level.
+    parent_dimensions = ["encounter_date", "district_code", "disease"]
+    parent_window = Window.partitionBy(*parent_dimensions)
+    visible_rank_window = (
+        Window.partitionBy(*parent_dimensions)
+        .orderBy(
+            F.col("_exact_case_count").asc(),
+            F.col("case_classification").asc(),
+        )
+    )
+
     aggregated = (
         silver
         .select(*DIMENSIONS)
         .groupBy(*DIMENSIONS)
         .agg(F.count(F.lit(1)).alias("_exact_case_count"))
-    )
-
-    # Never write the exact value for a group below the public threshold.
-    public_output = (
-        aggregated
         .withColumn(
-            "case_count",
-            F.when(
-                F.col("_exact_case_count") >= min_public_count,
-                F.col("_exact_case_count"),
-            ).otherwise(F.lit(None).cast("long")),
+            "_parent_count",
+            F.sum("_exact_case_count").over(parent_window),
         )
         .withColumn(
-            "count_suppressed",
+            "_primary_suppressed",
             F.col("_exact_case_count") < min_public_count,
         )
-        .drop("_exact_case_count")
+        .withColumn(
+            "_primary_suppressed_count",
+            F.sum(
+                F.when(F.col("_primary_suppressed"), 1).otherwise(0)
+            ).over(parent_window),
+        )
+        .withColumn(
+            "_visible_rank",
+            F.when(
+                ~F.col("_primary_suppressed"),
+                F.row_number().over(visible_rank_window),
+            ),
+        )
     )
 
-    return public_output.select(
+    # If exactly one child count is hidden but its parent total is public,
+    # hide the smallest visible child count as well.
+    protected = aggregated.withColumn(
+        "_complementary_suppressed",
+        (
+            (F.col("_parent_count") >= min_public_count)
+            & (F.col("_primary_suppressed_count") == 1)
+            & (~F.col("_primary_suppressed"))
+            & (F.col("_visible_rank") == 1)
+        ),
+    )
+
+    return protected.select(
         *DIMENSIONS,
-        "case_count",
-        "count_suppressed",
+        F.when(
+            ~F.col("_primary_suppressed")
+            & ~F.col("_complementary_suppressed"),
+            F.col("_exact_case_count"),
+        ).otherwise(F.lit(None).cast("long")).alias("case_count"),
+        (
+            F.col("_primary_suppressed")
+            | F.col("_complementary_suppressed")
+        ).alias("count_suppressed"),
     )
 
 

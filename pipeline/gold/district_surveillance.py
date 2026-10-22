@@ -5,8 +5,7 @@ import json
 import re
 from pathlib import Path
 
-from pyspark.sql import DataFrame, SparkSession, functions as F
-
+from pyspark.sql import DataFrame, SparkSession, Window, functions as F
 
 DAILY_DIMENSIONS = ["encounter_date", "district_code", "disease"]
 
@@ -26,22 +25,79 @@ def _suppress_small_counts(
     if min_public_count < 2:
         raise ValueError("min_public_count must be at least 2")
 
-    return (
+    dimensions = [
+        column for column in aggregated.columns
+        if column != "_exact_case_count"
+    ]
+    # The final dimension is the child category; other dimensions define
+    # the parent group whose total must not reveal a hidden child count.
+    parent_dimensions = dimensions[:-1]
+
+    if not parent_dimensions:
+        parent_dimensions = dimensions
+
+    parent_window = Window.partitionBy(*parent_dimensions)
+    rank_window = (
+        Window.partitionBy(*parent_dimensions)
+        .orderBy(
+            F.col("_exact_case_count").asc(),
+            F.col(dimensions[-1]).asc(),
+        )
+    )
+
+    protected = (
         aggregated
+        .withColumn(
+            "_parent_count",
+            F.sum("_exact_case_count").over(parent_window),
+        )
+        .withColumn(
+            "_primary",
+            F.col("_exact_case_count") < min_public_count,
+        )
+        .withColumn(
+            "_primary_count",
+            F.sum(F.when(F.col("_primary"), 1).otherwise(0))
+            .over(parent_window),
+        )
+        .withColumn(
+            "_rank",
+            F.when(
+                ~F.col("_primary"),
+                F.row_number().over(rank_window),
+            ),
+        )
+        .withColumn(
+            "_complementary",
+            (F.col("_parent_count") >= min_public_count)
+            & (F.col("_primary_count") == 1)
+            & (~F.col("_primary"))
+            & (F.col("_rank") == 1),
+        )
+    )
+
+    return (
+        protected
         .withColumn(
             "case_count",
             F.when(
-                F.col("_exact_case_count") >= min_public_count,
+                ~F.col("_primary") & ~F.col("_complementary"),
                 F.col("_exact_case_count"),
             ).otherwise(F.lit(None).cast("long")),
         )
         .withColumn(
             "count_suppressed",
-            F.col("_exact_case_count") < min_public_count,
+            F.col("_primary") | F.col("_complementary"),
         )
-        .drop("_exact_case_count")
+        .drop(
+            "_exact_case_count",
+            "_parent_count",
+            "_primary",
+            "_primary_count",
+            "_rank",
+            "_complementary",
+        )
     )
-
 
 def aggregate_district_daily(
     silver: DataFrame,

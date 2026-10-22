@@ -24,11 +24,16 @@ Grouped by:
 ## Privacy
 
 Counts below the configured public threshold are replaced with null and
-marked with `count_suppressed=true`. The default threshold is five.
+marked with 'count_suppressed=true' The default threshold is five.
 
-This threshold suppression is a baseline safeguard, not a complete
-disclosure-control solution. Complementary suppression and review of
-related aggregates are still needed before public release.
+Complementary suppression is applied within each daily or weekly
+aggregation to hide an additional visible count when a single suppressed
+count could otherwise be inferred from its parent total.
+
+This is a baseline safeguard. Reconstruction across related daily, weekly,
+classification-level, or other published aggregates has not been fully
+assessed. Outputs should not be considered fully disclosure-safe for
+public release until that cross-output risk is reviewed.
 
 ## Outputs
 
