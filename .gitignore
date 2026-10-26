@@ -8,3 +8,4 @@ data/synthetic/
 
 # Generated Spark processing outputs
 /data/processed/
+serving/exports/
