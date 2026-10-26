@@ -58,14 +58,7 @@ def main():
         .otherwise(F.col("case_count")),
     )
 
-    # Suppress small forecast and resource-demand values.
-    for column in ["forecast_cases", "lower80", "upper80"]:
-        forecasts = forecasts.withColumn(
-            column,
-            F.when(F.col(column).between(1, 4), F.lit(None).cast("double"))
-            .otherwise(F.col(column)),
-        )
-
+   
     for column in [
         "forecast_cases_4w", "beds_required",
         "iv_saline_units", "test_kits_required",
