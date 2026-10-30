@@ -1,0 +1,14 @@
+services:
+  episcope:
+    build: .
+    container_name: episcope-demo
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./serving/exports:/app/serving/exports
+    environment:
+      PYSPARK_PYTHON: python3
+      PYSPARK_DRIVER_PYTHON: python3
+      SPARK_LOCAL_HOSTNAME: localhost
+    init: true
