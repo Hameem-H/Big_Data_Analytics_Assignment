@@ -17,6 +17,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 RUN python3 -m venv /opt/venv
+
 ENV PATH="/opt/venv/bin:${PATH}"
 
 RUN pip install --no-cache-dir --upgrade pip \
@@ -25,8 +26,9 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 COPY . .
 
-RUN chmod +x /app/docker/entrypoint.sh
+RUN sed -i 's/\r$//' /app/docker/entrypoint.sh \
+    && chmod +x /app/docker/entrypoint.sh
 
 EXPOSE 8000
 
-CMD ["/app/docker/entrypoint.sh"]
+CMD ["/bin/sh", "/app/docker/entrypoint.sh"]
